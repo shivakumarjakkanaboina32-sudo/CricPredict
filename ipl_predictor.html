@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPL Match Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Mulish:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060910;
+  --surface: #0d1117;
+  --card: #111827;
+  --border: #1f2937;
+  --text: #f0f4f8;
+  --muted: #6b7280;
+  --accent: #10b981;
+  --accent2: #3b82f6;
+  --gold: #f59e0b;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Mulish',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* Cricket pitch pattern bg */
+body::before{
+  content:'';position:fixed;inset:0;
+  background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(16,185,129,0.08) 0%, transparent 60%),
+              radial-gradient(ellipse 60% 40% at 80% 100%, rgba(59,130,246,0.06) 0%, transparent 50%);
+  pointer-events:none;z-index:0;
+}
+
+.wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:24px 20px 60px;}
+
+/* Header */
+.header{text-align:center;padding:40px 0 32px;}
+.header-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);
+  border-radius:99px;padding:6px 16px;margin-bottom:20px;
+  font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);
+  font-family:'Mulish',sans-serif;font-weight:700;
+}
+.header h1{
+  font-family:'Teko',sans-serif;font-size:clamp(52px,10vw,88px);
+  font-weight:700;letter-spacing:2px;line-height:0.9;
+  background:linear-gradient(135deg,#fff 0%,#a7f3d0 50%,var(--accent) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.header p{color:var(--muted);font-size:15px;margin-top:12px;font-weight:300;}
+
+/* Main card */
+.predictor{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:20px;overflow:hidden;margin-bottom:28px;
+}
+
+/* Teams row */
+.teams-row{
+  display:grid;grid-template-columns:1fr 60px 1fr;
+  align-items:center;gap:0;padding:28px;
+}
+.team-slot{display:flex;flex-direction:column;gap:12px;}
+.team-slot.right{align-items:flex-end;}
+.vs-badge{
+  text-align:center;font-family:'Teko',sans-serif;font-size:28px;
+  color:var(--muted);letter-spacing:1px;
+}
+.team-select-wrap{position:relative;width:100%;}
+.team-btn{
+  width:100%;background:var(--surface);border:2px solid var(--border);
+  border-radius:14px;padding:16px;cursor:pointer;transition:all 0.2s;
+  text-align:left;color:var(--text);
+  display:flex;align-items:center;gap:12px;
+}
+.team-btn:hover,.team-btn.open{border-color:var(--accent);}
+.team-slot.right .team-btn{flex-direction:row-reverse;text-align:right;}
+.team-logo{
+  width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'Teko',sans-serif;font-size:15px;font-weight:600;color:#fff;flex-shrink:0;
+  letter-spacing:0.5px;
+}
+.team-btn-info{}
+.team-btn-name{font-weight:700;font-size:15px;line-height:1.2;}
+.team-btn-short{font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+
+/* Dropdown */
+.dropdown{
+  position:absolute;top:calc(100% + 8px);left:0;right:0;
+  background:#161d2a;border:1px solid var(--border);border-radius:14px;
+  overflow:hidden;z-index:100;display:none;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+}
+.dropdown.open{display:block;}
+.right .dropdown{left:auto;right:0;}
+.dd-item{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;
+  transition:background 0.15s;font-size:14px;font-weight:600;
+}
+.dd-item:hover{background:rgba(16,185,129,0.08);}
+.dd-item .dd-logo{
+  width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'Teko',sans-serif;font-size:12px;color:#fff;flex-shrink:0;
+}
+.dd-item.disabled{opacity:0.3;pointer-events:none;}
+
+/* Match settings */
+.settings-row{
+  border-top:1px solid var(--border);padding:20px 28px;
+  display:grid;grid-template-columns:1fr 1fr;gap:16px;
+}
+.setting{display:flex;flex-direction:column;gap:8px;}
+.setting label{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.seg{display:flex;gap:4px;background:var(--surface);border-radius:10px;padding:4px;}
+.seg-btn{
+  flex:1;padding:8px 12px;border:none;background:transparent;color:var(--muted);
+  border-radius:7px;cursor:pointer;font-size:13px;font-weight:700;transition:all 0.2s;
+  font-family:'Mulish',sans-serif;
+}
+.seg-btn.active{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+.venue-sel{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:10px 14px;color:var(--text);font-size:13px;font-family:'Mulish',sans-serif;
+  width:100%;outline:none;cursor:pointer;
+}
+.venue-sel:focus{border-color:var(--accent);}
+.venue-sel option{background:#161d2a;}
+
+/* Predict button */
+.predict-wrap{padding:0 28px 28px;}
+.predict-btn{
+  width:100%;padding:18px;background:var(--accent);border:none;border-radius:14px;
+  color:#000;font-family:'Teko',sans-serif;font-size:24px;font-weight:600;
+  letter-spacing:2px;cursor:pointer;transition:all 0.2s;
+}
+.predict-btn:hover{background:#059669;transform:translateY(-1px);}
+.predict-btn:active{transform:translateY(0);}
+.predict-btn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;transform:none;}
+
+/* Result */
+.result-card{
+  background:var(--card);border:1px solid var(--border);border-radius:20px;
+  overflow:hidden;margin-bottom:28px;display:none;
+}
+.result-card.show{display:block;animation:slideIn 0.4s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+.result-header{padding:24px 28px 0;display:flex;align-items:center;justify-content:space-between;}
+.result-label{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:700;}
+.conf-pill{
+  background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);
+  border-radius:99px;padding:4px 14px;font-size:12px;color:var(--accent);font-weight:700;
+}
+
+.result-teams{padding:20px 28px;display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;}
+.res-team{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;}
+.res-team.right{align-items:center;}
+.res-logo{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Teko',sans-serif;font-size:20px;color:#fff;font-weight:600;}
+.res-name{font-weight:700;font-size:14px;line-height:1.3;}
+.res-pct{font-family:'Teko',sans-serif;font-size:42px;font-weight:700;line-height:1;}
+.res-pct.winner{color:var(--accent);}
+.res-pct.loser{color:var(--muted);}
+.vs-divider{font-family:'Teko',sans-serif;font-size:20px;color:var(--muted);}
+
+/* Progress bars */
+.bars{padding:0 28px 8px;display:flex;flex-direction:column;gap:6px;}
+.bar-row{display:flex;align-items:center;gap:10px;}
+.bar-name{font-size:12px;font-weight:700;width:40px;text-align:right;}
+.bar-name.right{text-align:left;}
+.bar-track{flex:1;height:10px;background:var(--surface);border-radius:99px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:99px;transition:width 0.8s cubic-bezier(0.4,0,0.2,1);}
+.bar-pct{font-size:12px;font-weight:800;width:40px;}
+.bar-pct.right{text-align:right;}
+
+/* Winner banner */
+.winner-banner{
+  margin:0 28px 24px;padding:16px 20px;border-radius:12px;
+  background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);
+  display:flex;align-items:center;gap:12px;
+}
+.winner-icon{font-size:24px;}
+.winner-text{flex:1;}
+.winner-title{font-family:'Teko',sans-serif;font-size:22px;color:var(--accent);letter-spacing:1px;}
+.winner-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+
+/* Key factors */
+.factors{padding:0 28px 24px;}
+.factors-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:12px;}
+.factor-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{
+  background:rgba(255,255,255,0.04);border:1px solid var(--border);
+  border-radius:99px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--muted);
+  display:flex;align-items:center;gap:6px;
+}
+.chip.positive{background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3);color:var(--accent);}
+
+/* H2H section */
+.h2h-card{
+  background:var(--card);border:1px solid var(--border);border-radius:20px;
+  padding:24px 28px;margin-bottom:28px;display:none;
+}
+.h2h-card.show{display:block;}
+.h2h-title{font-family:'Teko',sans-serif;font-size:28px;letter-spacing:1px;margin-bottom:20px;}
+.h2h-stats{display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:center;text-align:center;}
+.h2h-num{font-family:'Teko',sans-serif;font-size:52px;line-height:1;}
+.h2h-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-top:4px;font-weight:700;}
+.h2h-bar-wrap{margin-top:16px;}
+.h2h-bar{height:12px;border-radius:99px;overflow:hidden;display:flex;background:var(--surface);}
+.h2h-seg1{height:100%;transition:width 0.8s ease;}
+.h2h-seg2{flex:1;height:100%;}
+.h2h-labels{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--muted);font-weight:700;}
+
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;text-align:center;
+}
+.stat-val{font-family:'Teko',sans-serif;font-size:36px;color:var(--accent);line-height:1;}
+.stat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px;font-weight:700;}
+
+/* Footer note */
+.note{text-align:center;font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6;}
+
+@media(max-width:600px){
+  .teams-row{grid-template-columns:1fr 40px 1fr;padding:16px;}
+  .team-logo{width:38px;height:38px;font-size:12px;}
+  .settings-row{grid-template-columns:1fr;padding:16px;}
+  .predict-wrap{padding:0 16px 20px;}
+  .result-teams{padding:16px;}
+  .res-pct{font-size:32px;}
+  .stats-grid{grid-template-columns:repeat(3,1fr);gap:8px;}
+  .stat-val{font-size:28px;}
+  .bars,.factors,.winner-banner,.result-header,.h2h-card{padding-left:16px;padding-right:16px;}
+  .winner-banner{margin:0 16px 20px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="header-badge">🏏 AI Powered · 2008–2024 Data</div>
+    <h1>IPL<br>PREDICTOR</h1>
+    <p>Select teams, toss details & venue — get your match prediction instantly</p>
+  </div>
+
+  <div class="predictor">
+    <!-- Teams -->
+    <div class="teams-row">
+      <div class="team-slot" id="slot1">
+        <div class="team-select-wrap">
+          <button class="team-btn" id="btn1" onclick="toggleDropdown(1)">
+            <div class="team-logo" id="logo1" style="background:#1f2937">?</div>
+            <div class="team-btn-info">
+              <div class="team-btn-name" id="name1">Select Team 1</div>
+              <div class="team-btn-short" id="short1">PICK A TEAM</div>
+            </div>
+          </button>
+          <div class="dropdown" id="dd1"></div>
+        </div>
+      </div>
+
+      <div class="vs-badge">VS</div>
+
+      <div class="team-slot right" id="slot2">
+        <div class="team-select-wrap">
+          <button class="team-btn" id="btn2" onclick="toggleDropdown(2)">
+            <div class="team-logo" id="logo2" style="background:#1f2937">?</div>
+            <div class="team-btn-info">
+              <div class="team-btn-name" id="name2">Select Team 2</div>
+              <div class="team-btn-short" id="short2">PICK A TEAM</div>
+            </div>
+          </button>
+          <div class="dropdown" id="dd2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings-row">
+      <div class="setting">
+        <label>Toss Winner</label>
+        <div class="seg" id="toss-seg">
+          <button class="seg-btn active" id="toss-t1" onclick="setToss('t1')">Team 1</button>
+          <button class="seg-btn" id="toss-t2" onclick="setToss('t2')">Team 2</button>
+        </div>
+      </div>
+      <div class="setting">
+        <label>Toss Decision</label>
+        <div class="seg">
+          <button class="seg-btn active" id="dec-field" onclick="setDecision('field')">Field</button>
+          <button class="seg-btn" id="dec-bat" onclick="setDecision('bat')">Bat</button>
+        </div>
+      </div>
+      <div class="setting" style="grid-column:1/-1">
+        <label>Venue (Optional)</label>
+        <select class="venue-sel" id="venue-sel"></select>
+      </div>
+    </div>
+
+    <div class="predict-wrap">
+      <button class="predict-btn" id="predict-btn" onclick="runPrediction()" disabled>
+        SELECT BOTH TEAMS TO PREDICT
+      </button>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="result-card" id="result-card">
+    <div class="result-header">
+      <div class="result-label">🔮 Prediction Result</div>
+      <div class="conf-pill" id="conf-pill">—</div>
+    </div>
+
+    <div class="result-teams">
+      <div class="res-team" id="res-t1">
+        <div class="res-logo" id="res-logo1"></div>
+        <div class="res-name" id="res-name1"></div>
+        <div class="res-pct" id="res-pct1"></div>
+      </div>
+      <div class="vs-divider">VS</div>
+      <div class="res-team right" id="res-t2">
+        <div class="res-logo" id="res-logo2"></div>
+        <div class="res-name" id="res-name2"></div>
+        <div class="res-pct" id="res-pct2"></div>
+      </div>
+    </div>
+
+    <div class="bars">
+      <div class="bar-row">
+        <div class="bar-name" id="bar-lbl1"></div>
+        <div class="bar-track"><div class="bar-fill" id="bar-fill1" style="width:0%"></div></div>
+        <div class="bar-pct" id="bar-pct1"></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name right" id="bar-lbl2"></div>
+        <div class="bar-track"><div class="bar-fill" id="bar-fill2" style="width:0%"></div></div>
+        <div class="bar-pct right" id="bar-pct2"></div>
+      </div>
+    </div>
+
+    <div class="winner-banner" id="winner-banner">
+      <div class="winner-icon">🏆</div>
+      <div class="winner-text">
+        <div class="winner-title" id="winner-title"></div>
+        <div class="winner-sub" id="winner-sub"></div>
+      </div>
+    </div>
+
+    <div class="factors" id="factors-wrap">
+      <div class="factors-title">💡 Key Factors</div>
+      <div class="factor-chips" id="factor-chips"></div>
+    </div>
+  </div>
+
+  <!-- H2H -->
+  <div class="h2h-card" id="h2h-card">
+    <div class="h2h-title">HEAD TO HEAD</div>
+    <div class="h2h-stats">
+      <div>
+        <div class="h2h-num" id="h2h-w1" style="color:var(--accent)">—</div>
+        <div class="h2h-label" id="h2h-n1">Team 1</div>
+      </div>
+      <div>
+        <div class="h2h-num" style="color:var(--muted)" id="h2h-total">—</div>
+        <div class="h2h-label">Matches</div>
+      </div>
+      <div>
+        <div class="h2h-num" id="h2h-w2" style="color:var(--accent2)">—</div>
+        <div class="h2h-label" id="h2h-n2">Team 2</div>
+      </div>
+    </div>
+    <div class="h2h-bar-wrap" id="h2h-bar-wrap">
+      <div class="h2h-bar">
+        <div class="h2h-seg1" id="h2h-seg1"></div>
+        <div class="h2h-seg2" id="h2h-seg2"></div>
+      </div>
+      <div class="h2h-labels">
+        <span id="h2h-pct1"></span>
+        <span id="h2h-pct2"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="stats-grid" style="display:none">
+    <div class="stat-card">
+      <div class="stat-val" id="stat-matches">—</div>
+      <div class="stat-lbl">Total IPL Matches</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="stat-seasons">17</div>
+      <div class="stat-lbl">Seasons (2008–2024)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="stat-acc">~52%</div>
+      <div class="stat-lbl">Model Accuracy</div>
+    </div>
+  </div>
+
+  <div class="note">
+    Model trained on IPL 2008–2024 · GradientBoosting · 47 features<br>
+    Predictions are probabilistic estimates, not guarantees.
+  </div>
+
+</div>
+
+<script>
+const DATA = {"teams":["Chennai Super Kings","Delhi Capitals","Gujarat Titans","Kolkata Knight Riders","Lucknow Super Giants","Mumbai Indians","Punjab Kings","Rajasthan Royals","Royal Challengers Bengaluru","Sunrisers Hyderabad"],"all_teams":["Chennai Super Kings","Delhi Capitals","Gujarat Lions","Gujarat Titans","Kochi Tuskers Kerala","Kolkata Knight Riders","Lucknow Super Giants","Mumbai Indians","Pune Warriors","Punjab Kings","Rajasthan Royals","Rising Pune Supergiants","Royal Challengers Bengaluru","Sunrisers Hyderabad"],"venues":["Arun Jaitley Stadium","Arun Jaitley Stadium, Delhi","Barabati Stadium","Barsapara Cricket Stadium, Guwahati","Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow","Brabourne Stadium","Brabourne Stadium, Mumbai","Buffalo Park","De Beers Diamond Oval","Dr DY Patil Sports Academy","Dr DY Patil Sports Academy, Mumbai","Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium","Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium, Visakhapatnam","Dubai International Cricket Stadium","Eden Gardens","Eden Gardens, Kolkata","Feroz Shah Kotla","Green Park","Himachal Pradesh Cricket Association Stadium","Himachal Pradesh Cricket Association Stadium, Dharamsala","Holkar Cricket Stadium","JSCA International Stadium Complex","Kingsmead","M Chinnaswamy Stadium","M Chinnaswamy Stadium, Bengaluru","M.Chinnaswamy Stadium","MA Chidambaram Stadium","MA Chidambaram Stadium, Chepauk","MA Chidambaram Stadium, Chepauk, Chennai","Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur","Maharashtra Cricket Association Stadium","Maharashtra Cricket Association Stadium, Pune","Narendra Modi Stadium, Ahmedabad","Nehru Stadium","New Wanderers Stadium","Newlands","OUTsurance Oval","Punjab Cricket Association IS Bindra Stadium","Punjab Cricket Association IS Bindra Stadium, Mohali","Punjab Cricket Association IS Bindra Stadium, Mohali, Chandigarh"],"team_colors":{"Chennai Super Kings":"#F5A623","Delhi Capitals":"#0078BC","Gujarat Titans":"#1C1C6E","Kolkata Knight Riders":"#3A225D","Lucknow Super Giants":"#A72056","Mumbai Indians":"#004BA0","Punjab Kings":"#ED1B24","Rajasthan Royals":"#EA1A85","Royal Challengers Bengaluru":"#EC1C24","Sunrisers Hyderabad":"#F7A721"},"team_short":{"Chennai Super Kings":"CSK","Delhi Capitals":"DC","Gujarat Titans":"GT","Kolkata Knight Riders":"KKR","Lucknow Super Giants":"LSG","Mumbai Indians":"MI","Punjab Kings":"PBKS","Rajasthan Royals":"RR","Royal Challengers Bengaluru":"RCB","Sunrisers Hyderabad":"SRH"},"team_data":{"Chennai Super Kings":{"form":0.5,"season_form":0.5,"metrics":{"run_rate":8.815839933776855,"pp_run_rate":9.354166666666668,"death_run_rate":7.7749999999999995,"mid_run_rate":8.666666666666666,"boundary_pct":0.1862367590148315,"six_rate":0.059435977384856856,"economy":8.456465756255529,"dot_pct":0.3206139056534054,"bowling_sr":23.745833327980208,"wickets_taken":6.125,"wickets_lost":5.5}},"Delhi Capitals":{"form":0.6,"season_form":0.5,"metrics":{"run_rate":8.57984832389173,"pp_run_rate":9.375,"death_run_rate":6.525,"mid_run_rate":7.972222222222222,"boundary_pct":0.18857068845033043,"six_rate":0.06564462867147458,"economy":7.1159069540820745,"dot_pct":0.33139060483987337,"bowling_sr":875000015.2480655,"wickets_taken":5.125,"wickets_lost":6.375}},"Gujarat Titans":{"form":0.4,"season_form":0.417,"metrics":{"run_rate":8.286791952493175,"pp_run_rate":7.666666666666666,"death_run_rate":7.975,"mid_run_rate":8.638888888888888,"boundary_pct":0.17422216549287756,"six_rate":0.05013717353057292,"economy":9.75804151136315,"dot_pct":0.3266569090259651,"bowling_sr":31.583333316389687,"wickets_taken":5.125,"wickets_lost":7.25}},"Kolkata Knight Riders":{"form":0.7,"season_form":0.786,"metrics":{"run_rate":10.049626568579633,"pp_run_rate":11.1875,"death_run_rate":5.325,"mid_run_rate":8.652777777777779,"boundary_pct":0.2447548223313073,"six_rate":0.08656365241143629,"economy":8.617240998939774,"dot_pct":0.3656509897513656,"bowling_sr":20.985416660549113,"wickets_taken":7.75,"wickets_lost":5.125}},"Lucknow Super Giants":{"form":0.5,"season_form":0.5,"metrics":{"run_rate":8.054721779725465,"pp_run_rate":7.958333333333334,"death_run_rate":7.25,"mid_run_rate":8.13888888888889,"boundary_pct":0.16007644905654853,"six_rate":0.05149963441442841,"economy":8.606779995119405,"dot_pct":0.2891486838586034,"bowling_sr":7500000016.65,"wickets_taken":4.625,"wickets_lost":6.75}},"Mumbai Indians":{"form":0.4,"season_form":0.286,"metrics":{"run_rate":9.638316263507082,"pp_run_rate":9.791666666666666,"death_run_rate":7.4,"mid_run_rate":9.555555555555555,"boundary_pct":0.22814866922830473,"six_rate":0.08448263328998479,"economy":9.405337641582847,"dot_pct":0.30938744119192996,"bowling_sr":31.564732125368266,"wickets_taken":6.0,"wickets_lost":6.25}},"Punjab Kings":{"form":0.3,"season_form":0.357,"metrics":{"run_rate":9.083486725895337,"pp_run_rate":9.291666666666668,"death_run_rate":7.074999999999999,"mid_run_rate":9.26388888888889,"boundary_pct":0.2084421312619165,"six_rate":0.08264350461878611,"economy":9.321751967355286,"dot_pct":0.308311116719691,"bowling_sr":16.995039680149905,"wickets_taken":7.5,"wickets_lost":7.125}},"Rajasthan Royals":{"form":0.5,"season_form":0.6,"metrics":{"run_rate":8.729763885398746,"pp_run_rate":8.0,"death_run_rate":6.075,"mid_run_rate":7.666666666666666,"boundary_pct":0.20075783707365374,"six_rate":0.07004145432271672,"economy":9.124291493521376,"dot_pct":0.2822233349455666,"bowling_sr":19.333382932550617,"wickets_taken":6.5,"wickets_lost":5.375}},"Royal Challengers Bengaluru":{"form":0.5,"season_form":0.467,"metrics":{"run_rate":8.717534317777274,"pp_run_rate":7.833333333333333,"death_run_rate":6.95,"mid_run_rate":7.166666666666667,"boundary_pct":0.18861232625711233,"six_rate":0.06949329865378537,"economy":8.698198386350988,"dot_pct":0.2814542516785473,"bowling_sr":18.554166660602014,"wickets_taken":4.875,"wickets_lost":6.125}},"Sunrisers Hyderabad":{"form":0.5,"season_form":0.562,"metrics":{"run_rate":9.332818037474745,"pp_run_rate":11.041666666666668,"death_run_rate":5.5,"mid_run_rate":7.5,"boundary_pct":0.2074770215582088,"six_rate":0.0834027133546765,"economy":9.173717661648064,"dot_pct":0.33604609963609766,"bowling_sr":28.7705357051222,"wickets_taken":4.25,"wickets_lost":7.0}}},"h2h":{"Chennai Super Kings":{"Delhi Capitals":{"wins":19,"total":30,"ratio":0.633},"Gujarat Titans":{"wins":3,"total":7,"ratio":0.429},"Kolkata Knight Riders":{"wins":19,"total":29,"ratio":0.655},"Lucknow Super Giants":{"wins":1,"total":4,"ratio":0.25},"Mumbai Indians":{"wins":17,"total":37,"ratio":0.459},"Punjab Kings":{"wins":16,"total":30,"ratio":0.533},"Rajasthan Royals":{"wins":16,"total":29,"ratio":0.552},"Royal Challengers Bengaluru":{"wins":21,"total":32,"ratio":0.656},"Sunrisers Hyderabad":{"wins":21,"total":31,"ratio":0.677}},"Delhi Capitals":{"Chennai Super Kings":{"wins":11,"total":30,"ratio":0.367},"Gujarat Titans":{"wins":3,"total":5,"ratio":0.6},"Kolkata Knight Riders":{"wins":15,"total":33,"ratio":0.455},"Lucknow Super Giants":{"wins":2,"total":5,"ratio":0.4},"Mumbai Indians":{"wins":16,"total":35,"ratio":0.457},"Punjab Kings":{"wins":16,"total":33,"ratio":0.485},"Rajasthan Royals":{"wins":14,"total":29,"ratio":0.483},"Royal Challengers Bengaluru":{"wins":11,"total":30,"ratio":0.367},"Sunrisers Hyderabad":{"wins":18,"total":35,"ratio":0.514}},"Gujarat Titans":{"Chennai Super Kings":{"wins":4,"total":7,"ratio":0.571},"Delhi Capitals":{"wins":2,"total":5,"ratio":0.4},"Kolkata Knight Riders":{"wins":2,"total":3,"ratio":0.667},"Lucknow Super Giants":{"wins":4,"total":5,"ratio":0.8},"Mumbai Indians":{"wins":3,"total":5,"ratio":0.6},"Punjab Kings":{"wins":3,"total":5,"ratio":0.6},"Rajasthan Royals":{"wins":5,"total":6,"ratio":0.833},"Royal Challengers Bengaluru":{"wins":2,"total":5,"ratio":0.4},"Sunrisers Hyderabad":{"wins":3,"total":4,"ratio":0.75}},"Kolkata Knight Riders":{"Chennai Super Kings":{"wins":10,"total":29,"ratio":0.345},"Delhi Capitals":{"wins":18,"total":33,"ratio":0.545},"Gujarat Titans":{"wins":1,"total":3,"ratio":0.333},"Lucknow Super Giants":{"wins":2,"total":5,"ratio":0.4},"Mumbai Indians":{"wins":11,"total":34,"ratio":0.324},"Punjab Kings":{"wins":21,"total":33,"ratio":0.636},"Rajasthan Royals":{"wins":14,"total":28,"ratio":0.5},"Royal Challengers Bengaluru":{"wins":20,"total":34,"ratio":0.588},"Sunrisers Hyderabad":{"wins":26,"total":37,"ratio":0.703}},"Lucknow Super Giants":{"Chennai Super Kings":{"wins":3,"total":4,"ratio":0.75},"Delhi Capitals":{"wins":3,"total":5,"ratio":0.6},"Gujarat Titans":{"wins":1,"total":5,"ratio":0.2},"Kolkata Knight Riders":{"wins":3,"total":5,"ratio":0.6},"Mumbai Indians":{"wins":5,"total":6,"ratio":0.833},"Punjab Kings":{"wins":3,"total":4,"ratio":0.75},"Rajasthan Royals":{"wins":1,"total":5,"ratio":0.2},"Royal Challengers Bengaluru":{"wins":2,"total":5,"ratio":0.4},"Sunrisers Hyderabad":{"wins":3,"total":4,"ratio":0.75}},"Mumbai Indians":{"Chennai Super Kings":{"wins":20,"total":37,"ratio":0.541},"Delhi Capitals":{"wins":19,"total":35,"ratio":0.543},"Gujarat Titans":{"wins":2,"total":5,"ratio":0.4},"Kolkata Knight Riders":{"wins":23,"total":34,"ratio":0.676},"Lucknow Super Giants":{"wins":1,"total":6,"ratio":0.167},"Punjab Kings":{"wins":17,"total":32,"ratio":0.531},"Rajasthan Royals":{"wins":15,"total":29,"ratio":0.517},"Royal Challengers Bengaluru":{"wins":19,"total":33,"ratio":0.576},"Sunrisers Hyderabad":{"wins":19,"total":33,"ratio":0.576}},"Punjab Kings":{"Chennai Super Kings":{"wins":14,"total":30,"ratio":0.467},"Delhi Capitals":{"wins":17,"total":33,"ratio":0.515},"Gujarat Titans":{"wins":2,"total":5,"ratio":0.4},"Kolkata Knight Riders":{"wins":12,"total":33,"ratio":0.364},"Lucknow Super Giants":{"wins":1,"total":4,"ratio":0.25},"Mumbai Indians":{"wins":15,"total":32,"ratio":0.469},"Rajasthan Royals":{"wins":12,"total":28,"ratio":0.429},"Royal Challengers Bengaluru":{"wins":17,"total":33,"ratio":0.515},"Sunrisers Hyderabad":{"wins":14,"total":33,"ratio":0.424}},"Rajasthan Royals":{"Chennai Super Kings":{"wins":13,"total":29,"ratio":0.448},"Delhi Capitals":{"wins":15,"total":29,"ratio":0.517},"Gujarat Titans":{"wins":1,"total":6,"ratio":0.167},"Kolkata Knight Riders":{"wins":14,"total":28,"ratio":0.5},"Lucknow Super Giants":{"wins":4,"total":5,"ratio":0.8},"Mumbai Indians":{"wins":14,"total":29,"ratio":0.483},"Punjab Kings":{"wins":16,"total":28,"ratio":0.571},"Royal Challengers Bengaluru":{"wins":14,"total":29,"ratio":0.483},"Sunrisers Hyderabad":{"wins":16,"total":29,"ratio":0.552}},"Royal Challengers Bengaluru":{"Chennai Super Kings":{"wins":11,"total":32,"ratio":0.344},"Delhi Capitals":{"wins":19,"total":30,"ratio":0.633},"Gujarat Titans":{"wins":3,"total":5,"ratio":0.6},"Kolkata Knight Riders":{"wins":14,"total":34,"ratio":0.412},"Lucknow Super Giants":{"wins":3,"total":5,"ratio":0.6},"Mumbai Indians":{"wins":14,"total":33,"ratio":0.424},"Punjab Kings":{"wins":16,"total":33,"ratio":0.485},"Rajasthan Royals":{"wins":15,"total":29,"ratio":0.517},"Sunrisers Hyderabad":{"wins":16,"total":35,"ratio":0.457}},"Sunrisers Hyderabad":{"Chennai Super Kings":{"wins":10,"total":31,"ratio":0.323},"Delhi Capitals":{"wins":17,"total":35,"ratio":0.486},"Gujarat Titans":{"wins":1,"total":4,"ratio":0.25},"Kolkata Knight Riders":{"wins":11,"total":37,"ratio":0.297},"Lucknow Super Giants":{"wins":1,"total":4,"ratio":0.25},"Mumbai Indians":{"wins":14,"total":33,"ratio":0.424},"Punjab Kings":{"wins":19,"total":33,"ratio":0.576},"Rajasthan Royals":{"wins":13,"total":29,"ratio":0.448},"Royal Challengers Bengaluru":{"wins":19,"total":35,"ratio":0.543}}},"feat_imp":{"t1_form":0.016795828880042246,"t2_form":0.008668658943119079,"form_diff":0.007614705643278504,"t1_season_form":0.025139358962193548,"t2_season_form":0.01614130075103203,"season_form_diff":0.027597835613604287,"h2h_ratio":0.019071746256504683,"toss_win_t1":0.0051397229206752975,"bat_first":0.009517167029536316,"venue_avg_score":0.013948386857480618,"venue_avg_wkts":0.014553029478831565,"t1_run_rate":0.021177571095171644,"t2_run_rate":0.012654385124987774,"diff_run_rate":0.01732672777854845,"t1_pp_run_rate":0.025939823288978637,"t2_pp_run_rate":0.01766165396672513,"diff_pp_run_rate":0.021278090802160293,"t1_death_run_rate":0.029087986865777682,"t2_death_run_rate":0.02788748214633546,"diff_death_run_rate":0.030121043840453544,"t1_mid_run_rate":0.031078607826111625,"t2_mid_run_rate":0.02638793687363083,"diff_mid_run_rate":0.01616337188184425,"t1_boundary_pct":0.026144150497451283,"t2_boundary_pct":0.018454397875487822,"diff_boundary_pct":0.02448467527077477,"t1_six_rate":0.03719664613565179,"t2_six_rate":0.025238357369679536,"diff_six_rate":0.02716617713550362,"t1_economy":0.030824778336742277,"t2_economy":0.023594749489650305,"diff_economy":0.04308644012373854,"t1_dot_pct":0.03793133427253655,"t2_dot_pct":0.04862133279165383,"diff_dot_pct":0.02556174039749094,"t1_bowling_sr":0.02525272266626004,"t2_bowling_sr":0.02290884415421927,"diff_bowling_sr":0.031005861484712526,"t1_wickets_taken":0.012257089050746706,"t2_wickets_taken":0.01929448602457871,"diff_wickets_taken":0.0172629338809484,"t1_wickets_lost":0.02717698766422225,"t2_wickets_lost":0.016735870840176942,"diff_wickets_lost":0.01884800171075035},"feature_cols":["t1_form","t2_form","form_diff","t1_season_form","t2_season_form","season_form_diff","h2h_ratio","toss_win_t1","bat_first","venue_avg_score","venue_avg_wkts","t1_run_rate","t2_run_rate","diff_run_rate","t1_pp_run_rate","t2_pp_run_rate","diff_pp_run_rate","t1_death_run_rate","t2_death_run_rate","diff_death_run_rate","t1_mid_run_rate","t2_mid_run_rate","diff_mid_run_rate","t1_boundary_pct","t2_boundary_pct","diff_boundary_pct","t1_six_rate","t2_six_rate","diff_six_rate","t1_economy","t2_economy","diff_economy","t1_dot_pct","t2_dot_pct","diff_dot_pct","t1_bowling_sr","t2_bowling_sr","diff_bowling_sr","t1_wickets_taken","t2_wickets_taken","diff_wickets_taken","t1_wickets_lost","t2_wickets_lost","diff_wickets_lost"],"model_trees":[],"predictions":{"Chennai Super Kings":{"Delhi Capitals":{"t1_pct":63.9,"t2_pct":36.1},"Gujarat Titans":{"t1_pct":55.5,"t2_pct":44.5},"Kolkata Knight Riders":{"t1_pct":45.4,"t2_pct":54.6},"Lucknow Super Giants":{"t1_pct":52.8,"t2_pct":47.2},"Mumbai Indians":{"t1_pct":15.6,"t2_pct":84.4},"Punjab Kings":{"t1_pct":8.6,"t2_pct":91.4},"Rajasthan Royals":{"t1_pct":68.7,"t2_pct":31.3},"Royal Challengers Bengaluru":{"t1_pct":66.3,"t2_pct":33.7},"Sunrisers Hyderabad":{"t1_pct":37.5,"t2_pct":62.5}},"Delhi Capitals":{"Chennai Super Kings":{"t1_pct":70.2,"t2_pct":29.8},"Gujarat Titans":{"t1_pct":71.2,"t2_pct":28.8},"Kolkata Knight Riders":{"t1_pct":52.0,"t2_pct":48.0},"Lucknow Super Giants":{"t1_pct":65.7,"t2_pct":34.3},"Mumbai Indians":{"t1_pct":33.2,"t2_pct":66.8},"Punjab Kings":{"t1_pct":46.1,"t2_pct":53.9},"Rajasthan Royals":{"t1_pct":75.4,"t2_pct":24.6},"Royal Challengers Bengaluru":{"t1_pct":77.9,"t2_pct":22.1},"Sunrisers Hyderabad":{"t1_pct":55.6,"t2_pct":44.4}},"Gujarat Titans":{"Chennai Super Kings":{"t1_pct":51.4,"t2_pct":48.6},"Delhi Capitals":{"t1_pct":62.3,"t2_pct":37.7},"Kolkata Knight Riders":{"t1_pct":49.4,"t2_pct":50.6},"Lucknow Super Giants":{"t1_pct":57.5,"t2_pct":42.5},"Mumbai Indians":{"t1_pct":13.7,"t2_pct":86.3},"Punjab Kings":{"t1_pct":25.8,"t2_pct":74.2},"Rajasthan Royals":{"t1_pct":56.1,"t2_pct":43.9},"Royal Challengers Bengaluru":{"t1_pct":62.2,"t2_pct":37.8},"Sunrisers Hyderabad":{"t1_pct":30.9,"t2_pct":69.1}},"Kolkata Knight Riders":{"Chennai Super Kings":{"t1_pct":31.3,"t2_pct":68.7},"Delhi Capitals":{"t1_pct":55.6,"t2_pct":44.4},"Gujarat Titans":{"t1_pct":27.2,"t2_pct":72.8},"Lucknow Super Giants":{"t1_pct":44.9,"t2_pct":55.1},"Mumbai Indians":{"t1_pct":8.3,"t2_pct":91.7},"Punjab Kings":{"t1_pct":21.4,"t2_pct":78.6},"Rajasthan Royals":{"t1_pct":47.8,"t2_pct":52.2},"Royal Challengers Bengaluru":{"t1_pct":36.2,"t2_pct":63.8},"Sunrisers Hyderabad":{"t1_pct":24.6,"t2_pct":75.4}},"Lucknow Super Giants":{"Chennai Super Kings":{"t1_pct":56.5,"t2_pct":43.5},"Delhi Capitals":{"t1_pct":67.5,"t2_pct":32.5},"Gujarat Titans":{"t1_pct":38.5,"t2_pct":61.5},"Kolkata Knight Riders":{"t1_pct":43.1,"t2_pct":56.9},"Mumbai Indians":{"t1_pct":9.2,"t2_pct":90.8},"Punjab Kings":{"t1_pct":19.3,"t2_pct":80.7},"Rajasthan Royals":{"t1_pct":37.6,"t2_pct":62.4},"Royal Challengers Bengaluru":{"t1_pct":43.6,"t2_pct":56.4},"Sunrisers Hyderabad":{"t1_pct":25.4,"t2_pct":74.6}},"Mumbai Indians":{"Chennai Super Kings":{"t1_pct":18.3,"t2_pct":81.7},"Delhi Capitals":{"t1_pct":34.3,"t2_pct":65.7},"Gujarat Titans":{"t1_pct":16.3,"t2_pct":83.7},"Kolkata Knight Riders":{"t1_pct":45.8,"t2_pct":54.2},"Lucknow Super Giants":{"t1_pct":38.1,"t2_pct":61.9},"Punjab Kings":{"t1_pct":4.3,"t2_pct":95.7},"Rajasthan Royals":{"t1_pct":27.8,"t2_pct":72.2},"Royal Challengers Bengaluru":{"t1_pct":47.1,"t2_pct":52.9},"Sunrisers Hyderabad":{"t1_pct":26.0,"t2_pct":74.0}},"Punjab Kings":{"Chennai Super Kings":{"t1_pct":24.9,"t2_pct":75.1},"Delhi Capitals":{"t1_pct":26.6,"t2_pct":73.4},"Gujarat Titans":{"t1_pct":17.5,"t2_pct":82.5},"Kolkata Knight Riders":{"t1_pct":44.3,"t2_pct":55.7},"Lucknow Super Giants":{"t1_pct":38.8,"t2_pct":61.2},"Mumbai Indians":{"t1_pct":14.2,"t2_pct":85.8},"Rajasthan Royals":{"t1_pct":32.1,"t2_pct":67.9},"Royal Challengers Bengaluru":{"t1_pct":26.1,"t2_pct":73.9},"Sunrisers Hyderabad":{"t1_pct":38.5,"t2_pct":61.5}},"Rajasthan Royals":{"Chennai Super Kings":{"t1_pct":56.0,"t2_pct":44.0},"Delhi Capitals":{"t1_pct":39.3,"t2_pct":60.7},"Gujarat Titans":{"t1_pct":18.2,"t2_pct":81.8},"Kolkata Knight Riders":{"t1_pct":30.8,"t2_pct":69.2},"Lucknow Super Giants":{"t1_pct":30.5,"t2_pct":69.5},"Mumbai Indians":{"t1_pct":6.0,"t2_pct":94.0},"Punjab Kings":{"t1_pct":6.0,"t2_pct":94.0},"Royal Challengers Bengaluru":{"t1_pct":11.6,"t2_pct":88.4},"Sunrisers Hyderabad":{"t1_pct":23.8,"t2_pct":76.2}},"Royal Challengers Bengaluru":{"Chennai Super Kings":{"t1_pct":36.5,"t2_pct":63.5},"Delhi Capitals":{"t1_pct":34.2,"t2_pct":65.8},"Gujarat Titans":{"t1_pct":14.8,"t2_pct":85.2},"Kolkata Knight Riders":{"t1_pct":24.4,"t2_pct":75.6},"Lucknow Super Giants":{"t1_pct":21.7,"t2_pct":78.3},"Mumbai Indians":{"t1_pct":4.5,"t2_pct":95.5},"Punjab Kings":{"t1_pct":6.0,"t2_pct":94.0},"Rajasthan Royals":{"t1_pct":28.8,"t2_pct":71.2},"Sunrisers Hyderabad":{"t1_pct":17.2,"t2_pct":82.8}},"Sunrisers Hyderabad":{"Chennai Super Kings":{"t1_pct":30.6,"t2_pct":69.4},"Delhi Capitals":{"t1_pct":49.7,"t2_pct":50.3},"Gujarat Titans":{"t1_pct":23.1,"t2_pct":76.9},"Kolkata Knight Riders":{"t1_pct":23.6,"t2_pct":76.4},"Lucknow Super Giants":{"t1_pct":64.4,"t2_pct":35.6},"Mumbai Indians":{"t1_pct":8.1,"t2_pct":91.9},"Punjab Kings":{"t1_pct":15.3,"t2_pct":84.7},"Rajasthan Royals":{"t1_pct":38.2,"t2_pct":61.8},"Royal Challengers Bengaluru":{"t1_pct":29.6,"t2_pct":70.4}}},"lookup":{"Chennai Super Kings||Delhi Capitals":{"Chennai Super Kings||bat":{"t1":67.1,"t2":32.9},"Chennai Super Kings||field":{"t1":63.9,"t2":36.1},"Delhi Capitals||bat":{"t1":64.0,"t2":36.0},"Delhi Capitals||field":{"t1":58.6,"t2":41.4}},"Chennai Super Kings||Gujarat Titans":{"Chennai Super Kings||bat":{"t1":60.9,"t2":39.1},"Chennai Super Kings||field":{"t1":55.5,"t2":44.5},"Gujarat Titans||bat":{"t1":57.7,"t2":42.3},"Gujarat Titans||field":{"t1":50.4,"t2":49.6}},"Chennai Super Kings||Kolkata Knight Riders":{"Chennai Super Kings||bat":{"t1":48.5,"t2":51.5},"Chennai Super Kings||field":{"t1":45.4,"t2":54.6},"Kolkata Knight Riders||bat":{"t1":48.2,"t2":51.8},"Kolkata Knight Riders||field":{"t1":42.7,"t2":57.3}},"Chennai Super Kings||Lucknow Super Giants":{"Chennai Super Kings||bat":{"t1":57.1,"t2":42.9},"Chennai Super Kings||field":{"t1":52.8,"t2":47.2},"Lucknow Super Giants||bat":{"t1":54.3,"t2":45.7},"Lucknow Super Giants||field":{"t1":47.4,"t2":52.6}},"Chennai Super Kings||Mumbai Indians":{"Chennai Super Kings||bat":{"t1":20.5,"t2":79.5},"Chennai Super Kings||field":{"t1":15.6,"t2":84.4},"Mumbai Indians||bat":{"t1":18.9,"t2":81.1},"Mumbai Indians||field":{"t1":13.0,"t2":87.0}},"Chennai Super Kings||Punjab Kings":{"Chennai Super Kings||bat":{"t1":11.0,"t2":89.0},"Chennai Super Kings||field":{"t1":8.6,"t2":91.4},"Punjab Kings||bat":{"t1":9.9,"t2":90.1},"Punjab Kings||field":{"t1":6.9,"t2":93.1}},"Chennai Super Kings||Rajasthan Royals":{"Chennai Super Kings||bat":{"t1":68.7,"t2":31.3},"Chennai Super Kings||field":{"t1":68.7,"t2":31.3},"Rajasthan Royals||bat":{"t1":67.7,"t2":32.3},"Rajasthan Royals||field":{"t1":64.9,"t2":35.1}},"Chennai Super Kings||Royal Challengers Bengaluru":{"Chennai Super Kings||bat":{"t1":68.1,"t2":31.9},"Chennai Super Kings||field":{"t1":66.3,"t2":33.7},"Royal Challengers Bengaluru||bat":{"t1":65.9,"t2":34.1},"Royal Challengers Bengaluru||field":{"t1":61.0,"t2":39.0}},"Chennai Super Kings||Sunrisers Hyderabad":{"Chennai Super Kings||bat":{"t1":41.4,"t2":58.6},"Chennai Super Kings||field":{"t1":37.5,"t2":62.5},"Sunrisers Hyderabad||bat":{"t1":39.7,"t2":60.3},"Sunrisers Hyderabad||field":{"t1":34.2,"t2":65.8}},"Delhi Capitals||Chennai Super Kings":{"Delhi Capitals||bat":{"t1":73.2,"t2":26.8},"Delhi Capitals||field":{"t1":70.2,"t2":29.8},"Chennai Super Kings||bat":{"t1":70.1,"t2":29.9},"Chennai Super Kings||field":{"t1":65.3,"t2":34.7}},"Delhi Capitals||Gujarat Titans":{"Delhi Capitals||bat":{"t1":75.9,"t2":24.1},"Delhi Capitals||field":{"t1":71.2,"t2":28.8},"Gujarat Titans||bat":{"t1":72.4,"t2":27.6},"Gujarat Titans||field":{"t1":66.3,"t2":33.7}},"Delhi Capitals||Kolkata Knight Riders":{"Delhi Capitals||bat":{"t1":57.2,"t2":42.8},"Delhi Capitals||field":{"t1":52.0,"t2":48.0},"Kolkata Knight Riders||bat":{"t1":55.3,"t2":44.7},"Kolkata Knight Riders||field":{"t1":48.4,"t2":51.6}},"Delhi Capitals||Lucknow Super Giants":{"Delhi Capitals||bat":{"t1":70.5,"t2":29.5},"Delhi Capitals||field":{"t1":65.7,"t2":34.3},"Lucknow Super Giants||bat":{"t1":67.0,"t2":33.0},"Lucknow Super Giants||field":{"t1":60.6,"t2":39.4}},"Delhi Capitals||Mumbai Indians":{"Delhi Capitals||bat":{"t1":39.6,"t2":60.4},"Delhi Capitals||field":{"t1":33.2,"t2":66.8},"Mumbai Indians||bat":{"t1":36.8,"t2":63.2},"Mumbai Indians||field":{"t1":29.1,"t2":70.9}},"Delhi Capitals||Punjab Kings":{"Delhi Capitals||bat":{"t1":52.2,"t2":47.8},"Delhi Capitals||field":{"t1":46.1,"t2":53.9},"Punjab Kings||bat":{"t1":48.4,"t2":51.6},"Punjab Kings||field":{"t1":40.6,"t2":59.4}},"Delhi Capitals||Rajasthan Royals":{"Delhi Capitals||bat":{"t1":75.3,"t2":24.7},"Delhi Capitals||field":{"t1":75.4,"t2":24.6},"Rajasthan Royals||bat":{"t1":74.4,"t2":25.6},"Rajasthan Royals||field":{"t1":73.1,"t2":26.9}},"Delhi Capitals||Royal Challengers Bengaluru":{"Delhi Capitals||bat":{"t1":78.7,"t2":21.3},"Delhi Capitals||field":{"t1":77.9,"t2":22.1},"Royal Challengers Bengaluru||bat":{"t1":76.6,"t2":23.4},"Royal Challengers Bengaluru||field":{"t1":74.4,"t2":25.6}},"Delhi Capitals||Sunrisers Hyderabad":{"Delhi Capitals||bat":{"t1":58.1,"t2":41.9},"Delhi Capitals||field":{"t1":55.6,"t2":44.4},"Sunrisers Hyderabad||bat":{"t1":56.3,"t2":43.7},"Sunrisers Hyderabad||field":{"t1":52.0,"t2":48.0}},"Gujarat Titans||Chennai Super Kings":{"Gujarat Titans||bat":{"t1":57.5,"t2":42.5},"Gujarat Titans||field":{"t1":51.4,"t2":48.6},"Chennai Super Kings||bat":{"t1":58.1,"t2":41.9},"Chennai Super Kings||field":{"t1":49.4,"t2":50.6}},"Gujarat Titans||Delhi Capitals":{"Gujarat Titans||bat":{"t1":64.0,"t2":36.0},"Gujarat Titans||field":{"t1":62.3,"t2":37.7},"Delhi Capitals||bat":{"t1":63.7,"t2":36.3},"Delhi Capitals||field":{"t1":59.5,"t2":40.5}},"Gujarat Titans||Kolkata Knight Riders":{"Gujarat Titans||bat":{"t1":55.4,"t2":44.6},"Gujarat Titans||field":{"t1":49.4,"t2":50.6},"Kolkata Knight Riders||bat":{"t1":55.9,"t2":44.1},"Kolkata Knight Riders||field":{"t1":47.3,"t2":52.7}},"Gujarat Titans||Lucknow Super Giants":{"Gujarat Titans||bat":{"t1":59.3,"t2":40.7},"Gujarat Titans||field":{"t1":57.5,"t2":42.5},"Lucknow Super Giants||bat":{"t1":58.4,"t2":41.6},"Lucknow Super Giants||field":{"t1":53.6,"t2":46.4}},"Gujarat Titans||Mumbai Indians":{"Gujarat Titans||bat":{"t1":19.3,"t2":80.7},"Gujarat Titans||field":{"t1":13.7,"t2":86.3},"Mumbai Indians||bat":{"t1":18.1,"t2":81.9},"Mumbai Indians||field":{"t1":11.9,"t2":88.1}},"Gujarat Titans||Punjab Kings":{"Gujarat Titans||bat":{"t1":32.5,"t2":67.5},"Gujarat Titans||field":{"t1":25.8,"t2":74.2},"Punjab Kings||bat":{"t1":31.6,"t2":68.4},"Punjab Kings||field":{"t1":23.0,"t2":77.0}},"Gujarat Titans||Rajasthan Royals":{"Gujarat Titans||bat":{"t1":58.3,"t2":41.7},"Gujarat Titans||field":{"t1":56.1,"t2":43.9},"Rajasthan Royals||bat":{"t1":59.4,"t2":40.6},"Rajasthan Royals||field":{"t1":54.5,"t2":45.5}},"Gujarat Titans||Royal Challengers Bengaluru":{"Gujarat Titans||bat":{"t1":63.1,"t2":36.9},"Gujarat Titans||field":{"t1":62.2,"t2":37.8},"Royal Challengers Bengaluru||bat":{"t1":63.1,"t2":36.9},"Royal Challengers Bengaluru||field":{"t1":59.6,"t2":40.4}},"Gujarat Titans||Sunrisers Hyderabad":{"Gujarat Titans||bat":{"t1":35.1,"t2":64.9},"Gujarat Titans||field":{"t1":30.9,"t2":69.1},"Sunrisers Hyderabad||bat":{"t1":35.2,"t2":64.8},"Sunrisers Hyderabad||field":{"t1":28.7,"t2":71.3}},"Kolkata Knight Riders||Chennai Super Kings":{"Kolkata Knight Riders||bat":{"t1":32.5,"t2":67.5},"Kolkata Knight Riders||field":{"t1":31.3,"t2":68.7},"Chennai Super Kings||bat":{"t1":30.9,"t2":69.1},"Chennai Super Kings||field":{"t1":28.8,"t2":71.2}},"Kolkata Knight Riders||Delhi Capitals":{"Kolkata Knight Riders||bat":{"t1":54.8,"t2":45.2},"Kolkata Knight Riders||field":{"t1":55.6,"t2":44.4},"Delhi Capitals||bat":{"t1":51.3,"t2":48.7},"Delhi Capitals||field":{"t1":50.2,"t2":49.8}},"Kolkata Knight Riders||Gujarat Titans":{"Kolkata Knight Riders||bat":{"t1":28.4,"t2":71.6},"Kolkata Knight Riders||field":{"t1":27.2,"t2":72.8},"Gujarat Titans||bat":{"t1":25.7,"t2":74.3},"Gujarat Titans||field":{"t1":23.7,"t2":76.3}},"Kolkata Knight Riders||Lucknow Super Giants":{"Kolkata Knight Riders||bat":{"t1":47.9,"t2":52.1},"Kolkata Knight Riders||field":{"t1":44.9,"t2":55.1},"Lucknow Super Giants||bat":{"t1":44.4,"t2":55.6},"Lucknow Super Giants||field":{"t1":39.5,"t2":60.5}},"Kolkata Knight Riders||Mumbai Indians":{"Kolkata Knight Riders||bat":{"t1":9.9,"t2":90.1},"Kolkata Knight Riders||field":{"t1":8.3,"t2":91.7},"Mumbai Indians||bat":{"t1":8.8,"t2":91.2},"Mumbai Indians||field":{"t1":7.1,"t2":92.9}},"Kolkata Knight Riders||Punjab Kings":{"Kolkata Knight Riders||bat":{"t1":24.2,"t2":75.8},"Kolkata Knight Riders||field":{"t1":21.4,"t2":78.6},"Punjab Kings||bat":{"t1":21.8,"t2":78.2},"Punjab Kings||field":{"t1":18.2,"t2":81.8}},"Kolkata Knight Riders||Rajasthan Royals":{"Kolkata Knight Riders||bat":{"t1":45.8,"t2":54.2},"Kolkata Knight Riders||field":{"t1":47.8,"t2":52.2},"Rajasthan Royals||bat":{"t1":44.5,"t2":55.5},"Rajasthan Royals||field":{"t1":44.9,"t2":55.1}},"Kolkata Knight Riders||Royal Challengers Bengaluru":{"Kolkata Knight Riders||bat":{"t1":35.8,"t2":64.2},"Kolkata Knight Riders||field":{"t1":36.2,"t2":63.8},"Royal Challengers Bengaluru||bat":{"t1":33.4,"t2":66.6},"Royal Challengers Bengaluru||field":{"t1":32.4,"t2":67.6}},"Kolkata Knight Riders||Sunrisers Hyderabad":{"Kolkata Knight Riders||bat":{"t1":26.3,"t2":73.7},"Kolkata Knight Riders||field":{"t1":24.6,"t2":75.4},"Sunrisers Hyderabad||bat":{"t1":23.8,"t2":76.2},"Sunrisers Hyderabad||field":{"t1":21.9,"t2":78.1}},"Lucknow Super Giants||Chennai Super Kings":{"Lucknow Super Giants||bat":{"t1":61.9,"t2":38.1},"Lucknow Super Giants||field":{"t1":56.5,"t2":43.5},"Chennai Super Kings||bat":{"t1":58.9,"t2":41.1},"Chennai Super Kings||field":{"t1":50.8,"t2":49.2}},"Lucknow Super Giants||Delhi Capitals":{"Lucknow Super Giants||bat":{"t1":70.2,"t2":29.8},"Lucknow Super Giants||field":{"t1":67.5,"t2":32.5},"Delhi Capitals||bat":{"t1":66.0,"t2":34.0},"Delhi Capitals||field":{"t1":60.8,"t2":39.2}},"Lucknow Super Giants||Gujarat Titans":{"Lucknow Super Giants||bat":{"t1":42.8,"t2":57.2},"Lucknow Super Giants||field":{"t1":38.5,"t2":61.5},"Gujarat Titans||bat":{"t1":39.3,"t2":60.7},"Gujarat Titans||field":{"t1":32.8,"t2":67.2}},"Lucknow Super Giants||Kolkata Knight Riders":{"Lucknow Super Giants||bat":{"t1":47.3,"t2":52.7},"Lucknow Super Giants||field":{"t1":43.1,"t2":56.9},"Kolkata Knight Riders||bat":{"t1":46.6,"t2":53.4},"Kolkata Knight Riders||field":{"t1":39.8,"t2":60.2}},"Lucknow Super Giants||Mumbai Indians":{"Lucknow Super Giants||bat":{"t1":11.8,"t2":88.2},"Lucknow Super Giants||field":{"t1":9.2,"t2":90.8},"Mumbai Indians||bat":{"t1":10.8,"t2":89.2},"Mumbai Indians||field":{"t1":7.6,"t2":92.4}},"Lucknow Super Giants||Punjab Kings":{"Lucknow Super Giants||bat":{"t1":23.5,"t2":76.5},"Lucknow Super Giants||field":{"t1":19.3,"t2":80.7},"Punjab Kings||bat":{"t1":22.3,"t2":77.7},"Punjab Kings||field":{"t1":16.7,"t2":83.3}},"Lucknow Super Giants||Rajasthan Royals":{"Lucknow Super Giants||bat":{"t1":35.3,"t2":64.7},"Lucknow Super Giants||field":{"t1":37.6,"t2":62.4},"Rajasthan Royals||bat":{"t1":34.8,"t2":65.2},"Rajasthan Royals||field":{"t1":34.5,"t2":65.5}},"Lucknow Super Giants||Royal Challengers Bengaluru":{"Lucknow Super Giants||bat":{"t1":43.1,"t2":56.9},"Lucknow Super Giants||field":{"t1":43.6,"t2":56.4},"Royal Challengers Bengaluru||bat":{"t1":40.7,"t2":59.3},"Royal Challengers Bengaluru||field":{"t1":38.6,"t2":61.4}},"Lucknow Super Giants||Sunrisers Hyderabad":{"Lucknow Super Giants||bat":{"t1":28.1,"t2":71.9},"Lucknow Super Giants||field":{"t1":25.4,"t2":74.6},"Sunrisers Hyderabad||bat":{"t1":26.8,"t2":73.2},"Sunrisers Hyderabad||field":{"t1":22.3,"t2":77.7}},"Mumbai Indians||Chennai Super Kings":{"Mumbai Indians||bat":{"t1":19.6,"t2":80.4},"Mumbai Indians||field":{"t1":18.3,"t2":81.7},"Chennai Super Kings||bat":{"t1":20.0,"t2":80.0},"Chennai Super Kings||field":{"t1":17.6,"t2":82.4}},"Mumbai Indians||Delhi Capitals":{"Mumbai Indians||bat":{"t1":33.4,"t2":66.6},"Mumbai Indians||field":{"t1":34.3,"t2":65.7},"Delhi Capitals||bat":{"t1":33.0,"t2":67.0},"Delhi Capitals||field":{"t1":32.2,"t2":67.8}},"Mumbai Indians||Gujarat Titans":{"Mumbai Indians||bat":{"t1":17.2,"t2":82.8},"Mumbai Indians||field":{"t1":16.3,"t2":83.7},"Gujarat Titans||bat":{"t1":16.4,"t2":83.6},"Gujarat Titans||field":{"t1":15.2,"t2":84.8}},"Mumbai Indians||Kolkata Knight Riders":{"Mumbai Indians||bat":{"t1":47.4,"t2":52.6},"Mumbai Indians||field":{"t1":45.8,"t2":54.2},"Kolkata Knight Riders||bat":{"t1":46.8,"t2":53.2},"Kolkata Knight Riders||field":{"t1":43.4,"t2":56.6}},"Mumbai Indians||Lucknow Super Giants":{"Mumbai Indians||bat":{"t1":37.5,"t2":62.5},"Mumbai Indians||field":{"t1":38.1,"t2":61.9},"Lucknow Super Giants||bat":{"t1":36.9,"t2":63.1},"Lucknow Super Giants||field":{"t1":35.7,"t2":64.3}},"Mumbai Indians||Punjab Kings":{"Mumbai Indians||bat":{"t1":4.8,"t2":95.2},"Mumbai Indians||field":{"t1":4.3,"t2":95.7},"Punjab Kings||bat":{"t1":4.7,"t2":95.3},"Punjab Kings||field":{"t1":4.0,"t2":96.0}},"Mumbai Indians||Rajasthan Royals":{"Mumbai Indians||bat":{"t1":28.4,"t2":71.6},"Mumbai Indians||field":{"t1":27.8,"t2":72.2},"Rajasthan Royals||bat":{"t1":29.3,"t2":70.7},"Rajasthan Royals||field":{"t1":27.3,"t2":72.7}},"Mumbai Indians||Royal Challengers Bengaluru":{"Mumbai Indians||bat":{"t1":46.9,"t2":53.1},"Mumbai Indians||field":{"t1":47.1,"t2":52.9},"Royal Challengers Bengaluru||bat":{"t1":46.8,"t2":53.2},"Royal Challengers Bengaluru||field":{"t1":45.4,"t2":54.6}},"Mumbai Indians||Sunrisers Hyderabad":{"Mumbai Indians||bat":{"t1":28.4,"t2":71.6},"Mumbai Indians||field":{"t1":26.0,"t2":74.0},"Sunrisers Hyderabad||bat":{"t1":28.6,"t2":71.4},"Sunrisers Hyderabad||field":{"t1":25.3,"t2":74.7}},"Punjab Kings||Chennai Super Kings":{"Punjab Kings||bat":{"t1":26.2,"t2":73.8},"Punjab Kings||field":{"t1":24.9,"t2":75.1},"Chennai Super Kings||bat":{"t1":26.6,"t2":73.4},"Chennai Super Kings||field":{"t1":23.6,"t2":76.4}},"Punjab Kings||Delhi Capitals":{"Punjab Kings||bat":{"t1":26.5,"t2":73.5},"Punjab Kings||field":{"t1":26.6,"t2":73.4},"Delhi Capitals||bat":{"t1":26.3,"t2":73.7},"Delhi Capitals||field":{"t1":24.7,"t2":75.3}},"Punjab Kings||Gujarat Titans":{"Punjab Kings||bat":{"t1":20.2,"t2":79.8},"Punjab Kings||field":{"t1":17.5,"t2":82.5},"Gujarat Titans||bat":{"t1":19.9,"t2":80.1},"Gujarat Titans||field":{"t1":16.0,"t2":84.0}},"Punjab Kings||Kolkata Knight Riders":{"Punjab Kings||bat":{"t1":46.4,"t2":53.6},"Punjab Kings||field":{"t1":44.3,"t2":55.7},"Kolkata Knight Riders||bat":{"t1":45.7,"t2":54.3},"Kolkata Knight Riders||field":{"t1":42.0,"t2":58.0}},"Punjab Kings||Lucknow Super Giants":{"Punjab Kings||bat":{"t1":40.2,"t2":59.8},"Punjab Kings||field":{"t1":38.8,"t2":61.2},"Lucknow Super Giants||bat":{"t1":39.4,"t2":60.6},"Lucknow Super Giants||field":{"t1":36.0,"t2":64.0}},"Punjab Kings||Mumbai Indians":{"Punjab Kings||bat":{"t1":18.4,"t2":81.6},"Punjab Kings||field":{"t1":14.2,"t2":85.8},"Mumbai Indians||bat":{"t1":17.0,"t2":83.0},"Mumbai Indians||field":{"t1":12.4,"t2":87.6}},"Punjab Kings||Rajasthan Royals":{"Punjab Kings||bat":{"t1":32.4,"t2":67.6},"Punjab Kings||field":{"t1":32.1,"t2":67.9},"Rajasthan Royals||bat":{"t1":33.5,"t2":66.5},"Rajasthan Royals||field":{"t1":31.9,"t2":68.1}},"Punjab Kings||Royal Challengers Bengaluru":{"Punjab Kings||bat":{"t1":26.6,"t2":73.4},"Punjab Kings||field":{"t1":26.1,"t2":73.9},"Royal Challengers Bengaluru||bat":{"t1":27.6,"t2":72.4},"Royal Challengers Bengaluru||field":{"t1":25.3,"t2":74.7}},"Punjab Kings||Sunrisers Hyderabad":{"Punjab Kings||bat":{"t1":42.2,"t2":57.8},"Punjab Kings||field":{"t1":38.5,"t2":61.5},"Sunrisers Hyderabad||bat":{"t1":41.7,"t2":58.3},"Sunrisers Hyderabad||field":{"t1":36.6,"t2":63.4}},"Rajasthan Royals||Chennai Super Kings":{"Rajasthan Royals||bat":{"t1":60.5,"t2":39.5},"Rajasthan Royals||field":{"t1":56.0,"t2":44.0},"Chennai Super Kings||bat":{"t1":57.7,"t2":42.3},"Chennai Super Kings||field":{"t1":51.1,"t2":48.9}},"Rajasthan Royals||Delhi Capitals":{"Rajasthan Royals||bat":{"t1":42.8,"t2":57.2},"Rajasthan Royals||field":{"t1":39.3,"t2":60.7},"Delhi Capitals||bat":{"t1":38.9,"t2":61.1},"Delhi Capitals||field":{"t1":33.2,"t2":66.8}},"Rajasthan Royals||Gujarat Titans":{"Rajasthan Royals||bat":{"t1":19.8,"t2":80.2},"Rajasthan Royals||field":{"t1":18.2,"t2":81.8},"Gujarat Titans||bat":{"t1":18.1,"t2":81.9},"Gujarat Titans||field":{"t1":15.9,"t2":84.1}},"Rajasthan Royals||Kolkata Knight Riders":{"Rajasthan Royals||bat":{"t1":33.5,"t2":66.5},"Rajasthan Royals||field":{"t1":30.8,"t2":69.2},"Kolkata Knight Riders||bat":{"t1":33.3,"t2":66.7},"Kolkata Knight Riders||field":{"t1":29.6,"t2":70.4}},"Rajasthan Royals||Lucknow Super Giants":{"Rajasthan Royals||bat":{"t1":33.9,"t2":66.1},"Rajasthan Royals||field":{"t1":30.5,"t2":69.5},"Lucknow Super Giants||bat":{"t1":30.5,"t2":69.5},"Lucknow Super Giants||field":{"t1":26.3,"t2":73.7}},"Rajasthan Royals||Mumbai Indians":{"Rajasthan Royals||bat":{"t1":7.8,"t2":92.2},"Rajasthan Royals||field":{"t1":6.0,"t2":94.0},"Mumbai Indians||bat":{"t1":7.1,"t2":92.9},"Mumbai Indians||field":{"t1":5.0,"t2":95.0}},"Rajasthan Royals||Punjab Kings":{"Rajasthan Royals||bat":{"t1":7.5,"t2":92.5},"Rajasthan Royals||field":{"t1":6.0,"t2":94.0},"Punjab Kings||bat":{"t1":6.8,"t2":93.2},"Punjab Kings||field":{"t1":4.9,"t2":95.1}},"Rajasthan Royals||Royal Challengers Bengaluru":{"Rajasthan Royals||bat":{"t1":12.0,"t2":88.0},"Rajasthan Royals||field":{"t1":11.6,"t2":88.4},"Royal Challengers Bengaluru||bat":{"t1":11.2,"t2":88.8},"Royal Challengers Bengaluru||field":{"t1":10.0,"t2":90.0}},"Rajasthan Royals||Sunrisers Hyderabad":{"Rajasthan Royals||bat":{"t1":28.0,"t2":72.0},"Rajasthan Royals||field":{"t1":23.8,"t2":76.2},"Sunrisers Hyderabad||bat":{"t1":24.4,"t2":75.6},"Sunrisers Hyderabad||field":{"t1":19.8,"t2":80.2}},"Royal Challengers Bengaluru||Chennai Super Kings":{"Royal Challengers Bengaluru||bat":{"t1":37.1,"t2":62.9},"Royal Challengers Bengaluru||field":{"t1":36.5,"t2":63.5},"Chennai Super Kings||bat":{"t1":35.9,"t2":64.1},"Chennai Super Kings||field":{"t1":32.9,"t2":67.1}},"Royal Challengers Bengaluru||Delhi Capitals":{"Royal Challengers Bengaluru||bat":{"t1":33.1,"t2":66.9},"Royal Challengers Bengaluru||field":{"t1":34.2,"t2":65.8},"Delhi Capitals||bat":{"t1":31.1,"t2":68.9},"Delhi Capitals||field":{"t1":29.5,"t2":70.5}},"Royal Challengers Bengaluru||Gujarat Titans":{"Royal Challengers Bengaluru||bat":{"t1":16.1,"t2":83.9},"Royal Challengers Bengaluru||field":{"t1":14.8,"t2":85.2},"Gujarat Titans||bat":{"t1":14.4,"t2":85.6},"Gujarat Titans||field":{"t1":12.4,"t2":87.6}},"Royal Challengers Bengaluru||Kolkata Knight Riders":{"Royal Challengers Bengaluru||bat":{"t1":25.2,"t2":74.8},"Royal Challengers Bengaluru||field":{"t1":24.4,"t2":75.6},"Kolkata Knight Riders||bat":{"t1":24.4,"t2":75.6},"Kolkata Knight Riders||field":{"t1":22.3,"t2":77.7}},"Royal Challengers Bengaluru||Lucknow Super Giants":{"Royal Challengers Bengaluru||bat":{"t1":21.5,"t2":78.5},"Royal Challengers Bengaluru||field":{"t1":21.7,"t2":78.3},"Lucknow Super Giants||bat":{"t1":20.0,"t2":80.0},"Lucknow Super Giants||field":{"t1":19.1,"t2":80.9}},"Royal Challengers Bengaluru||Mumbai Indians":{"Royal Challengers Bengaluru||bat":{"t1":5.1,"t2":94.9},"Royal Challengers Bengaluru||field":{"t1":4.5,"t2":95.5},"Mumbai Indians||bat":{"t1":4.8,"t2":95.2},"Mumbai Indians||field":{"t1":3.8,"t2":96.2}},"Royal Challengers Bengaluru||Punjab Kings":{"Royal Challengers Bengaluru||bat":{"t1":6.7,"t2":93.3},"Royal Challengers Bengaluru||field":{"t1":6.0,"t2":94.0},"Punjab Kings||bat":{"t1":6.0,"t2":94.0},"Punjab Kings||field":{"t1":4.7,"t2":95.3}},"Royal Challengers Bengaluru||Rajasthan Royals":{"Royal Challengers Bengaluru||bat":{"t1":25.8,"t2":74.2},"Royal Challengers Bengaluru||field":{"t1":28.8,"t2":71.2},"Rajasthan Royals||bat":{"t1":25.1,"t2":74.9},"Rajasthan Royals||field":{"t1":26.3,"t2":73.7}},"Royal Challengers Bengaluru||Sunrisers Hyderabad":{"Royal Challengers Bengaluru||bat":{"t1":17.8,"t2":82.2},"Royal Challengers Bengaluru||field":{"t1":17.2,"t2":82.8},"Sunrisers Hyderabad||bat":{"t1":16.5,"t2":83.5},"Sunrisers Hyderabad||field":{"t1":14.9,"t2":85.1}},"Sunrisers Hyderabad||Chennai Super Kings":{"Sunrisers Hyderabad||bat":{"t1":34.6,"t2":65.4},"Sunrisers Hyderabad||field":{"t1":30.6,"t2":69.4},"Chennai Super Kings||bat":{"t1":32.1,"t2":67.9},"Chennai Super Kings||field":{"t1":27.3,"t2":72.7}},"Sunrisers Hyderabad||Delhi Capitals":{"Sunrisers Hyderabad||bat":{"t1":51.2,"t2":48.8},"Sunrisers Hyderabad||field":{"t1":49.7,"t2":50.3},"Delhi Capitals||bat":{"t1":47.5,"t2":52.5},"Delhi Capitals||field":{"t1":44.4,"t2":55.6}},"Sunrisers Hyderabad||Gujarat Titans":{"Sunrisers Hyderabad||bat":{"t1":26.3,"t2":73.7},"Sunrisers Hyderabad||field":{"t1":23.1,"t2":76.9},"Gujarat Titans||bat":{"t1":23.9,"t2":76.1},"Gujarat Titans||field":{"t1":19.9,"t2":80.1}},"Sunrisers Hyderabad||Kolkata Knight Riders":{"Sunrisers Hyderabad||bat":{"t1":26.7,"t2":73.3},"Sunrisers Hyderabad||field":{"t1":23.6,"t2":76.4},"Kolkata Knight Riders||bat":{"t1":26.8,"t2":73.2},"Kolkata Knight Riders||field":{"t1":22.3,"t2":77.7}},"Sunrisers Hyderabad||Lucknow Super Giants":{"Sunrisers Hyderabad||bat":{"t1":68.8,"t2":31.2},"Sunrisers Hyderabad||field":{"t1":64.4,"t2":35.6},"Lucknow Super Giants||bat":{"t1":65.4,"t2":34.6},"Lucknow Super Giants||field":{"t1":59.3,"t2":40.7}},"Sunrisers Hyderabad||Mumbai Indians":{"Sunrisers Hyderabad||bat":{"t1":10.6,"t2":89.4},"Sunrisers Hyderabad||field":{"t1":8.1,"t2":91.9},"Mumbai Indians||bat":{"t1":9.4,"t2":90.6},"Mumbai Indians||field":{"t1":6.7,"t2":93.3}},"Sunrisers Hyderabad||Punjab Kings":{"Sunrisers Hyderabad||bat":{"t1":19.0,"t2":81.0},"Sunrisers Hyderabad||field":{"t1":15.3,"t2":84.7},"Punjab Kings||bat":{"t1":17.1,"t2":82.9},"Punjab Kings||field":{"t1":12.8,"t2":87.2}},"Sunrisers Hyderabad||Rajasthan Royals":{"Sunrisers Hyderabad||bat":{"t1":40.0,"t2":60.0},"Sunrisers Hyderabad||field":{"t1":38.2,"t2":61.8},"Rajasthan Royals||bat":{"t1":39.0,"t2":61.0},"Rajasthan Royals||field":{"t1":36.0,"t2":64.0}},"Sunrisers Hyderabad||Royal Challengers Bengaluru":{"Sunrisers Hyderabad||bat":{"t1":29.8,"t2":70.2},"Sunrisers Hyderabad||field":{"t1":29.6,"t2":70.4},"Royal Challengers Bengaluru||bat":{"t1":27.2,"t2":72.8},"Royal Challengers Bengaluru||field":{"t1":26.1,"t2":73.9}}}}
+;
+
+const TEAMS = DATA.teams;
+const COLORS = DATA.team_colors;
+const SHORT = DATA.team_short;
+const H2H = DATA.h2h;
+const LOOKUP = DATA.lookup;
+const VENUES = DATA.venues;
+const TEAM_DATA = DATA.team_data;
+
+let sel = {t1: null, t2: null};
+let toss = 't1';
+let decision = 'field';
+
+// Init venue dropdown
+const vs = document.getElementById('venue-sel');
+vs.innerHTML = '<option value="">Any Venue</option>';
+VENUES.forEach(v => {
+  const o = document.createElement('option');
+  o.value = v; o.textContent = v;
+  vs.appendChild(o);
+});
+
+// Build team dropdowns
+function buildDropdown(ddId, slotNum) {
+  const dd = document.getElementById(ddId);
+  dd.innerHTML = '';
+  TEAMS.forEach(team => {
+    const other = slotNum === 1 ? sel.t2 : sel.t1;
+    const div = document.createElement('div');
+    div.className = 'dd-item' + (team === other ? ' disabled' : '');
+    div.innerHTML = `
+      <div class="dd-logo" style="background:${COLORS[team]}">${SHORT[team]}</div>
+      <span>${team}</span>
+    `;
+    div.onclick = () => selectTeam(slotNum, team);
+    dd.appendChild(div);
+  });
+}
+
+function toggleDropdown(n) {
+  const dd = document.getElementById(`dd${n}`);
+  const btn = document.getElementById(`btn${n}`);
+  const other = document.getElementById(`dd${n===1?2:1}`);
+  buildDropdown(`dd${n}`, n);
+  const isOpen = dd.classList.contains('open');
+  other.classList.remove('open');
+  document.getElementById(`btn${n===1?2:1}`).classList.remove('open');
+  if (isOpen) { dd.classList.remove('open'); btn.classList.remove('open'); }
+  else { dd.classList.add('open'); btn.classList.add('open'); }
+}
+
+function selectTeam(n, team) {
+  sel[`t${n}`] = team;
+  document.getElementById(`logo${n}`).textContent = SHORT[team];
+  document.getElementById(`logo${n}`).style.background = COLORS[team];
+  document.getElementById(`name${n}`).textContent = team;
+  document.getElementById(`short${n}`).textContent = SHORT[team] + ' · IPL 2025';
+  document.getElementById(`dd${n}`).classList.remove('open');
+  document.getElementById(`btn${n}`).classList.remove('open');
+  updateTossLabels();
+  checkReady();
+  if (sel.t1 && sel.t2) showH2H();
+}
+
+function updateTossLabels() {
+  document.getElementById('toss-t1').textContent = sel.t1 ? SHORT[sel.t1] : 'Team 1';
+  document.getElementById('toss-t2').textContent = sel.t2 ? SHORT[sel.t2] : 'Team 2';
+}
+
+function setToss(t) {
+  toss = t;
+  document.getElementById('toss-t1').classList.toggle('active', t==='t1');
+  document.getElementById('toss-t2').classList.toggle('active', t==='t2');
+}
+
+function setDecision(d) {
+  decision = d;
+  document.getElementById('dec-field').classList.toggle('active', d==='field');
+  document.getElementById('dec-bat').classList.toggle('active', d==='bat');
+}
+
+function checkReady() {
+  const btn = document.getElementById('predict-btn');
+  if (sel.t1 && sel.t2) {
+    btn.disabled = false;
+    btn.textContent = `PREDICT: ${SHORT[sel.t1]} VS ${SHORT[sel.t2]}`;
+  }
+}
+
+function showH2H() {
+  const t1 = sel.t1, t2 = sel.t2;
+  if (!t1 || !t2) return;
+  const d = H2H[t1] && H2H[t1][t2];
+  if (!d) return;
+  const w1 = d.wins, total = d.total, w2 = total - w1;
+  document.getElementById('h2h-w1').textContent = w1;
+  document.getElementById('h2h-w2').textContent = w2;
+  document.getElementById('h2h-total').textContent = total;
+  document.getElementById('h2h-n1').textContent = SHORT[t1];
+  document.getElementById('h2h-n2').textContent = SHORT[t2];
+  const p1 = total > 0 ? (w1/total*100).toFixed(0) : 50;
+  const p2 = 100 - p1;
+  document.getElementById('h2h-seg1').style.width = p1+'%';
+  document.getElementById('h2h-seg1').style.background = COLORS[t1];
+  document.getElementById('h2h-seg2').style.background = COLORS[t2];
+  document.getElementById('h2h-pct1').textContent = SHORT[t1]+' '+p1+'%';
+  document.getElementById('h2h-pct2').textContent = p2+'% '+SHORT[t2];
+  document.getElementById('h2h-card').classList.add('show');
+}
+
+function runPrediction() {
+  const t1 = sel.t1, t2 = sel.t2;
+  if (!t1 || !t2) return;
+
+  const tw = toss === 't1' ? t1 : t2;
+  const key = `${t1}||${t2}`;
+  const tk = `${tw}||${decision}`;
+
+  let result = LOOKUP[key] && LOOKUP[key][tk];
+  if (!result) {
+    // fallback: reverse lookup
+    const key2 = `${t2}||${t1}`;
+    const r2 = LOOKUP[key2] && LOOKUP[key2][tk];
+    if (r2) result = {t1: r2.t2, t2: r2.t1};
+    else result = {t1: 50, t2: 50};
+  }
+
+  const p1 = result.t1, p2 = result.t2;
+  const winner = p1 >= p2 ? t1 : t2;
+  const winnerPct = Math.max(p1, p2);
+
+  // Populate result
+  document.getElementById('res-logo1').textContent = SHORT[t1];
+  document.getElementById('res-logo1').style.background = COLORS[t1];
+  document.getElementById('res-logo2').textContent = SHORT[t2];
+  document.getElementById('res-logo2').style.background = COLORS[t2];
+  document.getElementById('res-name1').textContent = t1;
+  document.getElementById('res-name2').textContent = t2;
+  document.getElementById('res-pct1').textContent = p1+'%';
+  document.getElementById('res-pct2').textContent = p2+'%';
+  document.getElementById('res-pct1').className = 'res-pct ' + (p1 >= p2 ? 'winner' : 'loser');
+  document.getElementById('res-pct2').className = 'res-pct ' + (p2 > p1 ? 'winner' : 'loser');
+  document.getElementById('conf-pill').textContent = winnerPct.toFixed(1)+'% confidence';
+
+  // Bars
+  document.getElementById('bar-lbl1').textContent = SHORT[t1];
+  document.getElementById('bar-lbl2').textContent = SHORT[t2];
+  document.getElementById('bar-pct1').textContent = p1+'%';
+  document.getElementById('bar-pct2').textContent = p2+'%';
+  setTimeout(() => {
+    document.getElementById('bar-fill1').style.width = p1+'%';
+    document.getElementById('bar-fill1').style.background = COLORS[t1];
+    document.getElementById('bar-fill2').style.width = p2+'%';
+    document.getElementById('bar-fill2').style.background = COLORS[t2];
+  }, 100);
+
+  // Winner banner
+  document.getElementById('winner-title').textContent = '🏆 '+winner+' PREDICTED TO WIN';
+  document.getElementById('winner-title').style.color = COLORS[winner];
+  document.getElementById('winner-sub').textContent = `${winnerPct.toFixed(1)}% win probability · Toss: ${tw === t1 ? SHORT[t1] : SHORT[t2]} chose to ${decision}`;
+
+  // Key factors
+  const chips = [];
+  const td1 = TEAM_DATA[t1], td2 = TEAM_DATA[t2];
+  if (td1 && td2) {
+    const formDiff = td1.form - td2.form;
+    if (Math.abs(formDiff) > 0.08) {
+      const better = formDiff > 0 ? t1 : t2;
+      chips.push({text: `${SHORT[better]} in better recent form`, pos: true});
+    }
+    const h2hD = H2H[t1] && H2H[t1][t2];
+    if (h2hD && h2hD.ratio > 0.6) chips.push({text:`${SHORT[t1]} leads H2H (${Math.round(h2hD.ratio*100)}%)`,pos:true});
+    else if (h2hD && h2hD.ratio < 0.4) chips.push({text:`${SHORT[t2]} leads H2H (${Math.round((1-h2hD.ratio)*100)}%)`,pos:true});
+    const dDiff = (td1.metrics.death_run_rate||0) - (td2.metrics.death_run_rate||0);
+    if (Math.abs(dDiff) > 0.8) {
+      const better = dDiff > 0 ? t1 : t2;
+      chips.push({text:`${SHORT[better]} stronger in death overs`,pos:false});
+    }
+    const eDiff = (td1.metrics.economy||0) - (td2.metrics.economy||0);
+    if (Math.abs(eDiff) > 0.4) {
+      const better = eDiff < 0 ? t1 : t2;
+      chips.push({text:`${SHORT[better]} tighter bowling economy`,pos:false});
+    }
+    if (toss === 't1') chips.push({text:`${SHORT[t1]} won toss → ${decision}`,pos:false});
+    else chips.push({text:`${SHORT[t2]} won toss → ${decision}`,pos:false});
+  }
+
+  const fc = document.getElementById('factor-chips');
+  fc.innerHTML = chips.map(c=>
+    `<div class="chip${c.pos?' positive':''}">${c.text}</div>`
+  ).join('');
+
+  // Show cards
+  document.getElementById('result-card').classList.add('show');
+  document.getElementById('stats-grid').style.display = 'grid';
+  document.getElementById('stat-matches').textContent = '1090';
+
+  document.getElementById('result-card').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.team-select-wrap')) {
+    document.querySelectorAll('.dropdown').forEach(d=>d.classList.remove('open'));
+    document.querySelectorAll('.team-btn').forEach(b=>b.classList.remove('open'));
+  }
+});
+
+// Init stats grid shown
+document.getElementById('stats-grid').style.display='grid';
+</script>
+</body>
+</html>
